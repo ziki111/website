@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Создать расписание | В&С</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Стили формы */
+    .schedule-form {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .form-group input, 
+    .form-group select {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .form-actions {
+      grid-column: span 2;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1.5rem;
+    }
+    .btn {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2E86AB;
+      color: white;
+    }
+    .btn-secondary {
+      background: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1 class="logo">
+      <a href="index.html" style="text-decoration: none; color: inherit;">B&C</a>
+    </h1>
+    <nav class="nav">
+      <a href="generate.html" class="nav-link">Создать расписание</a>
+      <a href="schedule-view.html" class="nav-link">Посмотреть расписание</a>
+      <a href="login.html" class="nav-link">Выйти</a>
+    </nav>
+  </header>
+
+  <main>
+    <form class="schedule-form" id="schedule-form">
+      <h2>Создание расписания</h2>
+      <div class="form-grid">
+        <!-- Левая колонка -->
+        <div class="form-group">
+          <label for="subject">Предмет</label>
+          <input type="text" id="subject" name="subject" required>
+        </div>
+        <div class="form-group">
+          <label for="teacher">Преподаватель</label>
+          <select id="teacher" name="teacher" required>
+            <option value="">Выберите преподавателя</option>
+            <option value="1">Иванов А.А.</option>
+            <option value="2">Петрова Б.С.</option>
+          </select>
+        </div>
+        
+        <!-- Правая колонка -->
+        <div class="form-group">
+          <label for="room">Аудитория</label>
+          <input type="text" id="room" name="room" required>
+        </div>
+        <div class="form-group">
+          <label for="group">Группа</label>
+          <input type="text" id="group" name="group" required>
+        </div>
+        
+        <!-- Полноширинные поля -->
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="start-date">Дата и время начала</label>
+          <input type="datetime-local" id="start-date" name="start-date" required>
+        </div>
+        <div class="form-group" style="grid-column: span 2;">
+          <label for="end-date">Дата и время окончания</label>
+          <input type="datetime-local" id="end-date" name="end-date" required>
+        </div>
+      </div>
+      
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="location.href='schedule-view.html'">Отмена</button>
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    // Сохранение данных в localStorage
+    document.getElementById('schedule-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = {
+    subject: this.elements['subject'].value,
+    teacher: this.elements['teacher'].value,
+    room: this.elements['room'].value,
+    group: this.elements['group'].value,
+    startDate: this.elements['start-date'].value, // Формат: "2023-11-20T09:00"
+    endDate: this.elements['end-date'].value,    // Формат: "2023-11-20T10:30"
+    id: Date.now()
+  };
+
+  const schedules = JSON.parse(localStorage.getItem('schedules')) || [];
+  schedules.push(formData);
+  localStorage.setItem('schedules', JSON.stringify(schedules));
+
+  alert('Событие добавлено!');
+  window.location.href = 'schedule-view.html';
+});
+  </script>
+</body>
+</html>

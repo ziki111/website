@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Регистрация | В&С</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="header">
+    <h1 class="logo">
+      <a href="index.html" style="text-decoration: none; color: inherit;">B&C</a>
+    </h1>
+    <nav class="nav">
+      <a href="generate.html" class="nav-link">Создать расписание</a>
+      <a href="schedule-view.html" class="nav-link">Посмотреть расписание</a>
+      <a href="login.html" class="nav-link">Войти</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ОСНОВНАЯ ФОРМА (обратите на ID и name) -->
+    <form class="auth-form" id="register-form">
+      <h2>Регистрация</h2>
+      <input type="text" name="fullname" placeholder="ФИО" required>
+      <input type="email" name="email" placeholder="Email" required>
+      <input type="tel" name="phone" placeholder="Телефон" required>
+      
+      <!-- Пароли с уникальными ID -->
+      <input type="password" id="password" name="password" placeholder="Пароль" minlength="6" required>
+      <input type="password" id="confirm-password" placeholder="Повторите пароль" required>
+      
+      <button type="submit">Зарегистрироваться</button>
+      <div class="auth-links">
+        Уже есть аккаунт? <a href="login.html">Войти</a>
+      </div>
+    </form>
+  </main>
+
+  <!-- ПОДКЛЮЧАЕМ СКРИПТ -->
+  <script src="js/auth.js"></script>
+</body>
+</html>

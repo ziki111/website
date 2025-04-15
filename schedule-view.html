@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Календарь расписания | В&С</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Библиотека для PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    /* Стили календаря */
+    .calendar {
+      max-width: 1200px;
+      margin: 2rem auto;
+      font-family: 'Roboto', sans-serif;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .calendar-title {
+      font-size: 1.5rem;
+      color: #2E86AB;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+    }
+    .calendar-day-header {
+      background: #2E86AB;
+      color: white;
+      padding: 0.8rem;
+      text-align: center;
+      font-weight: 500;
+    }
+    .calendar-day {
+      border: 1px solid #ddd;
+      min-height: 120px;
+      padding: 0.5rem;
+      background: white;
+    }
+    .calendar-date {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+    }
+    .calendar-event {
+      background: #e3f2fd;
+      border-left: 4px solid #2E86AB;
+      padding: 0.4rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .event-time {
+      font-weight: bold;
+      color: #2E86AB;
+    }
+    .busy-room {
+      background: #ffebee !important;
+      border-left: 4px solid #f44336 !important;
+    }
+    .busy-room::after {
+      content: "⚠️ ЗАНЯТО";
+      color: #f44336;
+      font-size: 0.8em;
+      display: block;
+    }
+
+    /* Модальное окно */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #2E86AB;
+      color: white;
+    }
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+    .btn-secondary {
+      background: #f5f5f5;
+    }
+
+    /* Стили для списка студентов */
+    .students-list {
+      margin-top: 1rem;
+      border-top: 1px solid #eee;
+      padding-top: 1rem;
+    }
+    .student-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+    }
+    .add-student {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Фильтры */
+    .filters-panel {
+      margin-bottom: 1.5rem;
+    }
+    .filter-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .filter-group {
+      flex: 1;
+    }
+    .filter-select {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .filter-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1 class="logo">
+      <a href="index.html" style="text-decoration: none; color: inherit;">B&C</a>
+    </h1>
+    <nav class="nav">
+      <a href="generate.html" class="nav-link">Создать расписание</a>
+      <a href="schedule-view.html" class="nav-link">Посмотреть расписание</a>
+      <a href="login.html" class="nav-link">Выйти</a>
+      <button id="export-pdf" class="nav-link" style="background: #4CAF50; color: white;">Экспорт PDF</button>
+    </nav>
+  </header>
+
+  <main class="calendar">
+    <!-- Календарь -->
+    <div class="calendar-header">
+      <button id="prev-month" class="btn btn-secondary">◀</button>
+      <h2 class="calendar-title" id="month-title"></h2>
+      <button id="next-month" class="btn btn-secondary">▶</button>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="filters-panel">
+      <button id="toggle-filters" class="btn btn-secondary">Фильтры ▼</button>
+      
+      <div id="filters-content" style="display: none; margin-top: 1rem; background: #f9f9f9; padding: 1rem; border-radius: 8px;">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Преподаватель</label>
+            <select id="filter-teacher" class="filter-select">
+              <option value="">Все</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label>Аудитория</label>
+            <select id="filter-room" class="filter-select">
+              <option value="">Все</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="filter-row">
+          <div class="filter-group">
+            <label>Группа</label>
+            <select id="filter-group" class="filter-select">
+              <option value="">Все</option>
+            </select>
+          </div>
+          
+          <div class="filter-group">
+            <label>Предмет</label>
+            <select id="filter-subject" class="filter-select">
+              <option value="">Все</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="filter-actions">
+          <button id="apply-filters" class="btn btn-primary">Применить</button>
+          <button id="reset-filters" class="btn btn-secondary">Сбросить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="calendar-grid" id="calendar-grid">
+      <!-- Сюда вставится календарь -->
+    </div>
+  </main>
+
+  <!-- Модальное окно редактирования -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <h3>Редактирование занятия</h3>
+      <form id="edit-form">
+        <input type="hidden" id="edit-id">
+        <div style="margin-bottom: 1rem;">
+          <label>Предмет</label>
+          <input type="text" id="edit-subject" class="form-input" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label>Преподаватель</label>
+          <input type="text" id="edit-teacher" class="form-input" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label>Аудитория</label>
+          <input type="text" id="edit-room" class="form-input" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label>Дата и время начала</label>
+          <input type="datetime-local" id="edit-start-date" class="form-input" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label>Дата и время окончания</label>
+          <input type="datetime-local" id="edit-end-date" class="form-input" required>
+        </div>
+        
+        <!-- Блок студентов -->
+        <div class="students-list">
+          <h4>Студенты:</h4>
+          <div id="students-container"></div>
+          <div class="add-student">
+            <input type="text" id="new-student" placeholder="Имя студента" class="form-input">
+            <button type="button" id="add-student-btn" class="btn btn-primary">+ Добавить</button>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="delete-event" class="btn btn-danger">Удалить</button>
+          <button type="button" id="cancel-edit" class="btn btn-secondary">Отмена</button>
+          <button type="submit" class="btn btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Инициализация jsPDF
+    const { jsPDF } = window.jspdf;
+
+    // Текущая дата
+    let currentYear = new Date().getFullYear();
+    let currentMonth = new Date().getMonth();
+    let currentEventId = null;
+
+    // Месяцы для заголовка
+    const monthNames = [
+      "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+      "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
+    ];
+
+    // Обновление заголовка
+    function updateMonthTitle() {
+      document.getElementById('month-title').textContent = 
+        `${monthNames[currentMonth]} ${currentYear}`;
+    }
+
+    // Генерация календаря
+    function generateCalendar() {
+      const calendarGrid = document.getElementById('calendar-grid');
+      calendarGrid.innerHTML = '';
+
+      // Заголовки дней недели
+      const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+      dayNames.forEach(day => {
+        calendarGrid.innerHTML += `<div class="calendar-day-header">${day}</div>`;
+      });
+
+      // Получаем события
+      const schedules = JSON.parse(localStorage.getItem('schedules')) || [];
+
+      // Первый день месяца и количество дней
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+      // Пустые ячейки в начале месяца
+      for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) {
+        calendarGrid.innerHTML += `<div class="calendar-day"></div>`;
+      }
+
+      // Ячейки с днями месяца
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEvents = schedules.filter(event => event.startDate.includes(dateStr));
+        const busyRooms = {};
+
+        let dayHTML = `<div class="calendar-day"><div class="calendar-date">${day}</div>`;
+
+        dayEvents.forEach(event => {
+          const startTime = event.startDate.split('T')[1].substring(0, 5);
+          const endTime = event.endDate.split('T')[1].substring(0, 5);
+          const room = event.room;
+          const students = event.students || [];
+
+          // Проверка на занятость аудитории
+          let isBusy = false;
+          if (busyRooms[room]) {
+            isBusy = busyRooms[room].some(
+              period => (event.startDate < period.end) && (event.endDate > period.start)
+            );
+          }
+
+          dayHTML += `
+            <div class="calendar-event ${isBusy ? 'busy-room' : ''}" 
+                 data-id="${event.id}"
+                 data-teacher="${event.teacher}"
+                 data-room="${event.room}"
+                 data-subject="${event.subject}"
+                 data-students="${students.join(',')}">
+              <div class="event-time">${startTime}-${endTime}</div>
+              <div>${event.subject}</div>
+              <div>${event.teacher}</div>
+              <div>${room}</div>
+              <small>Студентов: ${students.length}</small>
+            </div>
+          `;
+
+          // Запоминаем время занятия аудитории
+          if (!busyRooms[room]) busyRooms[room] = [];
+          busyRooms[room].push({
+            start: event.startDate,
+            end: event.endDate
+          });
+        });
+
+        dayHTML += `</div>`;
+        calendarGrid.innerHTML += dayHTML;
+      }
+
+      // Заполняем фильтры
+      populateFilters(schedules);
+    }
+
+    // Заполнение фильтров данными
+    function populateFilters(events) {
+      const teachers = new Set();
+      const rooms = new Set();
+      const subjects = new Set();
+      const groups = new Set();
+
+      events.forEach(event => {
+        if (event.teacher) teachers.add(event.teacher);
+        if (event.room) rooms.add(event.room);
+        if (event.subject) subjects.add(event.subject);
+        
+        // Извлекаем группы из студентов (формат: "Иванов (Группа-101)")
+        event.students?.forEach(student => {
+          const groupMatch = student.match(/\(([^)]+)\)/);
+          if (groupMatch) groups.add(groupMatch[1]);
+        });
+      });
+
+      updateSelectOptions('filter-teacher', teachers);
+      updateSelectOptions('filter-room', rooms);
+      updateSelectOptions('filter-subject', subjects);
+      updateSelectOptions('filter-group', groups);
+    }
+
+    // Обновление select-элементов
+    function updateSelectOptions(selectId, values) {
+      const select = document.getElementById(selectId);
+      const options = Array.from(values).map(value => 
+        `<option value="${value}">${value}</option>`
+      ).join('');
+      select.innerHTML = `<option value="">Все</option>${options}`;
+    }
+
+    // Применение фильтров
+    function applyFilters() {
+      const filters = {
+        teacher: document.getElementById('filter-teacher').value,
+        room: document.getElementById('filter-room').value,
+        group: document.getElementById('filter-group').value,
+        subject: document.getElementById('filter-subject').value
+      };
+
+      const events = document.querySelectorAll('.calendar-event');
+      events.forEach(event => {
+        const eventTeacher = event.dataset.teacher;
+        const eventRoom = event.dataset.room;
+        const eventSubject = event.dataset.subject;
+        const eventStudents = event.dataset.students;
+        
+        const teacherMatch = !filters.teacher || eventTeacher === filters.teacher;
+        const roomMatch = !filters.room || eventRoom === filters.room;
+        const subjectMatch = !filters.subject || eventSubject === filters.subject;
+        let groupMatch = true;
+        
+        if (filters.group) {
+          groupMatch = eventStudents.includes(`(${filters.group})`);
+        }
+        
+        event.style.display = (teacherMatch && roomMatch && subjectMatch && groupMatch) 
+          ? 'block' 
+          : 'none';
+      });
+    }
+
+    // Сброс фильтров
+    function resetFilters() {
+      document.getElementById('filter-teacher').value = '';
+      document.getElementById('filter-room').value = '';
+      document.getElementById('filter-group').value = '';
+      document.getElementById('filter-subject').value = '';
+      
+      document.querySelectorAll('.calendar-event').forEach(event => {
+        event.style.display = 'block';
+      });
+    }
+
+    // Открытие формы редактирования
+    function openEditForm(eventId) {
+      const events = JSON.parse(localStorage.getItem('schedules')) || [];
+      const event = events.find(e => e.id == eventId);
+      
+      if (!event) return;
+
+      currentEventId = eventId;
+      
+      // Заполняем форму
+      document.getElementById('edit-id').value = event.id;
+      document.getElementById('edit-subject').value = event.subject;
+      document.getElementById('edit-teacher').value = event.teacher;
+      document.getElementById('edit-room').value = event.room;
+      document.getElementById('edit-start-date').value = event.startDate;
+      document.getElementById('edit-end-date').value = event.endDate;
+
+      // Заполняем студентов
+      const studentsContainer = document.getElementById('students-container');
+      studentsContainer.innerHTML = '';
+      (event.students || []).forEach((student, index) => {
+        studentsContainer.innerHTML += `
+          <div class="student-item">
+            <span>${student}</span>
+            <button type="button" class="btn btn-danger remove-student" data-index="${index}">×</button>
+          </div>
+        `;
+      });
+
+      // Показываем окно
+      document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    // Экспорт в PDF
+    document.getElementById('export-pdf').addEventListener('click', function() {
+      const schedules = JSON.parse(localStorage.getItem('schedules')) || [];
+      
+      const doc = new jsPDF();
+      doc.text('Расписание занятий', 10, 10);
+      
+      // Таблица с данными
+      const headers = ['Дата', 'Время', 'Предмет', 'Преподаватель', 'Аудитория', 'Студенты'];
+      const data = schedules.map(event => [
+        event.startDate.split('T')[0],
+        `${event.startDate.split('T')[1].substring(0, 5)}-${event.endDate.split('T')[1].substring(0, 5)}`,
+        event.subject,
+        event.teacher,
+        event.room,
+        (event.students || []).join(', ')
+      ]);
+
+      doc.autoTable({
+        head: [headers],
+        body: data,
+        startY: 20
+      });
+
+      doc.save('расписание.pdf');
+    });
+
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', () => {
+      updateMonthTitle();
+      generateCalendar();
+
+      // Переключение месяцев
+      document.getElementById('prev-month').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+          currentMonth = 11;
+          currentYear--;
+        }
+        updateMonthTitle();
+        generateCalendar();
+      });
+
+      document.getElementById('next-month').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+          currentMonth = 0;
+          currentYear++;
+        }
+        updateMonthTitle();
+        generateCalendar();
+      });
+
+      // Клик по событию
+      document.addEventListener('click', function(e) {
+        const eventElement = e.target.closest('.calendar-event');
+        if (eventElement) {
+          openEditForm(eventElement.dataset.id);
+        }
+      });
+
+      // Добавление студента
+      document.getElementById('add-student-btn').addEventListener('click', function() {
+        const studentName = document.getElementById('new-student').value.trim();
+        if (!studentName) return;
+
+        const studentsContainer = document.getElementById('students-container');
+        studentsContainer.innerHTML += `
+          <div class="student-item">
+            <span>${studentName}</span>
+            <button type="button" class="btn btn-danger remove-student">×</button>
+          </div>
+        `;
+        document.getElementById('new-student').value = '';
+      });
+
+      // Удаление студента (делегирование)
+      document.getElementById('students-container').addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-student')) {
+          e.target.closest('.student-item').remove();
+        }
+      });
+
+      // Сохранение изменений
+      document.getElementById('edit-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const events = JSON.parse(localStorage.getItem('schedules')) || [];
+        const eventIndex = events.findIndex(e => e.id == currentEventId);
+
+        if (eventIndex !== -1) {
+          // Собираем список студентов
+          const students = [];
+          document.querySelectorAll('#students-container .student-item span').forEach(item => {
+            students.push(item.textContent);
+          });
+
+          // Обновляем событие
+          events[eventIndex] = {
+            ...events[eventIndex],
+            subject: this.elements['edit-subject'].value,
+            teacher: this.elements['edit-teacher'].value,
+            room: this.elements['edit-room'].value,
+            startDate: this.elements['edit-start-date'].value,
+            endDate: this.elements['edit-end-date'].value,
+            students: students
+          };
+
+          localStorage.setItem('schedules', JSON.stringify(events));
+          document.getElementById('edit-modal').style.display = 'none';
+          generateCalendar();
+        }
+      });
+
+      // Удаление события
+      document.getElementById('delete-event').addEventListener('click', function() {
+        if (confirm('Удалить это занятие?')) {
+          const events = JSON.parse(localStorage.getItem('schedules')) || [];
+          const updatedEvents = events.filter(e => e.id != currentEventId);
+          localStorage.setItem('schedules', JSON.stringify(updatedEvents));
+          document.getElementById('edit-modal').style.display = 'none';
+          generateCalendar();
+        }
+      });
+
+      // Закрытие модального окна
+      document.getElementById('cancel-edit').addEventListener('click', function() {
+        document.getElementById('edit-modal').style.display = 'none';
+      });
+
+      // Управление фильтрами
+      document.getElementById('toggle-filters').addEventListener('click', function() {
+        const filtersContent = document.getElementById('filters-content');
+        const isHidden = filtersContent.style.display === 'none';
+        filtersContent.style.display = isHidden ? 'block' : 'none';
+        this.textContent = `Фильтры ${isHidden ? '▲' : '▼'}`;
+      });
+
+      document.getElementById('apply-filters').addEventListener('click', applyFilters);
+      document.getElementById('reset-filters').addEventListener('click', resetFilters);
+    });
+  </script>
+</body>
+</html>
